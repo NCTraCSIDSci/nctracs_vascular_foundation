@@ -1,6 +1,5 @@
 # OMOP CDM Data Loading for Vascular Foundation Project
 
-[![DOI](https://zenodo.org/badge/YOUR_BADGE_NUMBER.svg)](https://doi.org/YOUR_DOI)
 
 This repository contains code developed by the TraCS Data Science Lab, which is part of the School of Medicine at the University of North Carolina at Chapel Hill. This code may have been modified from its original form to protect proprietary information and improve interpretability out of context. For example, most paths have been removed and some table field names have been changed.
 
