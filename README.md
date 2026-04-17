@@ -60,7 +60,7 @@ Creates a DuckDB database file (vascular.duckdb) containing:
 - `deriv_concept_ancestors`: OMOP vocabulary hierarchies filtered to concepts present in data
   
 ## Authors
-Peter Leese
+Peter Leese, Tomas McIntee
 
 ## Support
 The project described was supported by the National Center for Advancing Translational Sciences (NCATS), National Institutes of Health, through Grant Award Number UM1TR004406. The content is solely the responsibility of the authors and does not necessarily represent the official views of the NIH.
