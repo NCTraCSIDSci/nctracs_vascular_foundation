@@ -58,7 +58,25 @@ Creates a DuckDB database file (`vascular.duckdb`) containing the OMOP-based vas
 - All input OMOP tables
 - `deriv_concept_freqs`: Concept usage frequencies across domains
 - `deriv_concept_ancestors`: OMOP vocabulary hierarchies filtered to concepts present in data
-- `
+- `deriv_pvl_final`: final, cleaned PVL data attempting to extract discrete measurements from text
+- `deriv_calc_cci`: table of Charlson comorbidity index scores
+`deriv_vascular_dx`: table to recreate the vascular inclusion diagnoses for the cohort
+`deriv_depression`: table to identify just depression conditions for patients
+`deriv_revascularization`: table to identify all revascularizations procedures for patients
+`deriv_amputations`: table to identify all amputations for patients
+`deriv_rx_statin`: table to identify all statin medications for patients from DRUG_EXPOSURE
+`deriv_rx_antithrombotic`: same as statins but for antithrombotics
+`deriv_rx_htn`:  same as other medications but for hypertensive medications
+`deriv_rx_diab`: same as as other medications but for medications used for diabetes
+`deriv_gfr`:  table to identify all glomerular filtration rate labs from MEASUREMENTS
+`deriv_albumin`:  same as gfr but for albumin labs
+`deriv_lpa`:  same as other labs but for lipoprotein a
+`deriv_a1c`:  same but for hemoglobin A1c
+`deriv_ldl`:  same but for cholesterol, specifically low-density lipoprotein
+`deriv_sdoh`: table to identify discrete social determinant of health responses from patients in the OBSERVATION table
+`deriv_smoke`:  all patient smoking responses and assessments from the OBSERVATION table 
+`deriv_trans`: any indications of transportation issues for patients in the OBSERVATION table
+`patient_summary`:  the final, patient-level table that is assembled from both OMOP input tables for the cohort, as well as derived tables
   
 ## Authors
 Peter Leese, Tomas McIntee
