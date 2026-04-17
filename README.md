@@ -53,11 +53,12 @@ AS written he script expects the following parquet files in the specified direct
 - MEASUREMENT.parquet
   
 ## Output  
-Creates a DuckDB database file (vascular.duckdb) containing:
+Creates a DuckDB database file (`vascular.duckdb`) containing the OMOP-based vascular extension framework that consists of:
 
 - All input OMOP tables
 - `deriv_concept_freqs`: Concept usage frequencies across domains
 - `deriv_concept_ancestors`: OMOP vocabulary hierarchies filtered to concepts present in data
+- `
   
 ## Authors
 Peter Leese, Tomas McIntee
