@@ -1,4 +1,4 @@
-# First feature rollup stage.
+# Build second-level amputation model (based on treatment model)
 # Author(s): Tomas McIntee
 # Last updated: 2025-04-17
 #
