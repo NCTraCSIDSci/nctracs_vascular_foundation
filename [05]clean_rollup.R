@@ -1,3 +1,11 @@
+# First feature rollup stage.
+# Author(s): Tomas McIntee
+# Last updated: 2025-04-17
+#
+# © 2024, The University of North Carolina at Chapel Hill. The code is licensed 
+# under the MIT License and permission is granted to use in accordance with the 
+# MIT License.
+
 # Load libraries and set parameters. This cell must be run before any other cell, but other cells may be run in isolation.
 source("Dimensional/source_this_file.R") # De facto custom library (functions and R data).
 require(duckdb)
