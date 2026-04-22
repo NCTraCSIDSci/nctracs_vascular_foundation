@@ -1,4 +1,4 @@
-# First feature rollup stage.
+# Build death model
 # Author(s): Tomas McIntee
 # Last updated: 2025-04-17
 #
