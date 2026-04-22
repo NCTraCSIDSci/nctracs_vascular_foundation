@@ -1,3 +1,15 @@
+# Screen outliers
+# Author(s): Tomas McIntee
+# Last updated: 2025-04-17
+# 
+# This script creates the final analytical dataset by assembling a comprehensive
+# patient-level summary table. Each row represents one patient with aggregated
+# information from all clinical domains: demographics, conditions, procedures,
+# medications, laboratory results, and social determinants of health.
+# 
+# © 2024, The University of North Carolina at Chapel Hill. The code is licensed 
+# under the MIT License and permission is granted to use in accordance with the 
+# MIT License.
 require(duckdb)
 
 con <- dbConnect(duckdb::duckdb(), dbdir = "Z:\\vascular.duckdb")
