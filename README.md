@@ -88,6 +88,6 @@ The project described was supported by the National Center for Advancing Transla
 If you use this software in your work, please cite it using the CITATION.cff file or by clicking "Cite this repository" on the right.
 
 ## License
-Copyright (c) 2024 The University of North Carolina at Chapel Hill
+Copyright (c) 2026 The University of North Carolina at Chapel Hill
 
 This project is licensed under the MIT License - see the LICENSE file for details.
