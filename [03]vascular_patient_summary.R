@@ -1,7 +1,7 @@
 # Create Patient-Level Summary Table
-# Author(s): Peter Leese
+# Author(s): Peter Leese, Tomas McIntee
 # Started on 2024-12-22
-# Last updated: 2025-01-12
+# Last updated: 2025-04-17
 # 
 # This script creates the final analytical dataset by assembling a comprehensive
 # patient-level summary table. Each row represents one patient with aggregated
