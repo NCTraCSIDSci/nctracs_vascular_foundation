@@ -1,4 +1,4 @@
-# First feature rollup stage.
+# Build first-level treatment model (required for both second-level models)
 # Author(s): Tomas McIntee
 # Last updated: 2025-04-17
 #
