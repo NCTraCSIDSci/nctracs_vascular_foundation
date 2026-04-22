@@ -1,5 +1,4 @@
 # Feature supplemental
-# First feature rollup stage.
 # Author(s): Tomas McIntee
 # Last updated: 2025-04-17
 #
