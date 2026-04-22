@@ -1,3 +1,11 @@
+# First feature rollup stage.
+# Author(s): Tomas McIntee
+# Last updated: 2025-04-17
+#
+# © 2024, The University of North Carolina at Chapel Hill. The code is licensed 
+# under the MIT License and permission is granted to use in accordance with the 
+# MIT License.
+
 # Look at the feature pool. Assign weights.
 # n_salient <- 200 # Each variable pool is built from three overlapping collections of this size.
 set.seed(37) # Replication for training / testing split.
