@@ -1,3 +1,12 @@
+# First feature rollup stage.
+# Author(s): Tomas McIntee
+# Last updated: 2025-04-17
+#
+# © 2024, The University of North Carolina at Chapel Hill. The code is licensed 
+# under the MIT License and permission is granted to use in accordance with the 
+# MIT License.
+#
+# The loop count and feature count are low in this version for testing purposes. Higher values for both are recommended for best model accuracy.
 # Loop A with IPTW vector
 
 loop_count <- 100
