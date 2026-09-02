@@ -11,8 +11,11 @@
 # under the MIT License and permission is granted to use in accordance with the 
 # MIT License.
 require(duckdb)
-
-con <- dbConnect(duckdb::duckdb(), dbdir = "Z:\\vascular.duckdb")
+# Configuration - UPDATE THESE PATHS FOR YOUR ENVIRONMENT
+base_dir <- "path/to/your/working/directory"
+parquet_dir <- file.path(base_dir, "source_parquet_files")
+duckdb_file <- file.path(base_dir, "vascular.duckdb")
+con <- dbConnect(duckdb::duckdb(), dbdir = duckdb_file)
 
 # ---------------------------------------------------------------------------
 # Identify outliers (born 1925 or earlier)

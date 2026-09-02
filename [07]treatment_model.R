@@ -19,8 +19,14 @@ require(glmnet)
 require(lubridate)
 source("Dimensional/source_this_file.R")
 
+# Configuration - UPDATE THESE PATHS FOR YOUR ENVIRONMENT
+base_dir <- "path/to/your/working/directory"
+parquet_dir <- file.path(base_dir, "source_parquet_files")
+duckdb_file <- file.path(base_dir, "vascular.duckdb")
+duckdb_model <- file.path(base_dir, "vascular_model.duckdb")
+
 # Source database is opened read-only. All writes go to vascular_model.
-write_con <- dbConnect(duckdb::duckdb(), dbdir = "Z:\\vascular_model.duckdb")
+write_con <- dbConnect(duckdb::duckdb(), dbdir = duckdb_model)
 
 # Grab (unfortunately) the whole table:
 wide_table_column_names <- dbListFields(write_con, "vascular_wide_training")

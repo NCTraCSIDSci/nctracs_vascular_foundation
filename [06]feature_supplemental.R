@@ -22,8 +22,14 @@ require(lubridate)
 source("Dimensional/source_this_file.R")
 set.seed(27)
 
-read_con <- dbConnect(duckdb::duckdb(), dbdir = "Z:\\vascular.duckdb")
-write_con <- dbConnect(duckdb::duckdb(), dbdir = "Z:\\vascular_model.duckdb")
+# Configuration - UPDATE THESE PATHS FOR YOUR ENVIRONMENT
+base_dir <- "path/to/your/working/directory"
+parquet_dir <- file.path(base_dir, "source_parquet_files")
+duckdb_file <- file.path(base_dir, "vascular.duckdb")
+duckdb_model <- file.path(base_dir, "vascular_model.duckdb")
+
+read_con <- dbConnect(duckdb::duckdb(), dbdir = duckdb_file)
+write_con <- dbConnect(duckdb::duckdb(), dbdir = duckdb_model)
 # First step: Create
 revasc_all <- dbGetQuery(read_con,
     "SELECT

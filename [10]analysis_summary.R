@@ -11,8 +11,13 @@
 require(duckdb)
 require(tidyverse)
 
+# Configuration - UPDATE THESE PATHS FOR YOUR ENVIRONMENT
+base_dir <- "path/to/your/working/directory"
+parquet_dir <- file.path(base_dir, "source_parquet_files")
+duckdb_file <- file.path(base_dir, "vascular.duckdb")
+duckdb_model <- file.path(base_dir, "vascular_model.duckdb")
 # Source database opened read-only. No writes to vascular_model in this script.
-read_con <- dbConnect(duckdb::duckdb(), dbdir = "Z:\\vascular.duckdb", read_only = TRUE)
+read_con <- dbConnect(duckdb::duckdb(), dbdir = duckdb_file, read_only = TRUE)
 
 # ---------------------------------------------------------------------------
 

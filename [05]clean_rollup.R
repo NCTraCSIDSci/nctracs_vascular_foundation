@@ -13,7 +13,11 @@ source("Dimensional/source_this_file.R") # De facto custom library (functions an
 require(duckdb)
 require(dplyr)
 require(tidyverse)
-
+# Configuration - UPDATE THESE PATHS FOR YOUR ENVIRONMENT
+base_dir <- "path/to/your/working/directory"
+parquet_dir <- file.path(base_dir, "source_parquet_files")
+duckdb_file <- file.path(base_dir, "vascular.duckdb")
+duckdb_model <- file.path(base_dir, "vascular_model.duckdb")
 # User-defined parameters
 minimum_count <- 1700 # Minimum frequency of about 1%.
 specificity_naughty_list <- c() # c(764156, 746155, 764154, 746153) # "Disorder of X limb" concepts; the sidedness
@@ -25,10 +29,10 @@ generality_naughty_list <- c() # Empty the generality list
 #        grepl('disease of',tolower(concept_name))) %>%
 #    pull(concept_id)
 
-read_con <- dbConnect(duckdb::duckdb(), dbdir = "Z:\\vascular.duckdb",
+read_con <- dbConnect(duckdb::duckdb(), dbdir = duckdb_file,
     config = list(temp_directory = "C:\\Temp"),
     read_only = TRUE)
-write_con <- dbConnect(duckdb::duckdb(), dbdir = "Z:\\vascular_model.duckdb",
+write_con <- dbConnect(duckdb::duckdb(), dbdir = duckdb_model,
     config = list(temp_directory = "C:\\Temp"))
 gc()
 # ---------------------------------------------------------------------------
