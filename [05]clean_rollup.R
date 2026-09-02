@@ -2,6 +2,8 @@
 # Author(s): Tomas McIntee
 # Last updated: 2025-04-17
 #
+# © 2024, The University of North Carolina at Chapel Hill. The code is licensed
+# under the MIT License and permission is granted to use in accordance with the
 # © 2024, The University of North Carolina at Chapel Hill. The code is licensed 
 # under the MIT License and permission is granted to use in accordance with the 
 # MIT License.
@@ -13,7 +15,7 @@ require(dplyr)
 require(tidyverse)
 
 # User-defined parameters
-minimum_count <- 170 # Minimum frequency of about 1%.
+minimum_count <- 1700 # Minimum frequency of about 1%.
 specificity_naughty_list <- c() # c(764156, 746155, 764154, 746153) # "Disorder of X limb" concepts; the sidedness
 max_roll_distance <- 4 # Maximum number of levels to use for the fast roll.
 generality_naughty_list <- c() # Empty the generality list
@@ -23,14 +25,16 @@ generality_naughty_list <- c() # Empty the generality list
 #        grepl('disease of',tolower(concept_name))) %>%
 #    pull(concept_id)
 
-con <- dbConnect(duckdb::duckdb(), dbdir = "Z:\\vascular.duckdb")
+read_con <- dbConnect(duckdb::duckdb(), dbdir = "Z:\\vascular.duckdb",
+    config = list(temp_directory = "C:\\Temp"),
+    read_only = TRUE)
+write_con <- dbConnect(duckdb::duckdb(), dbdir = "Z:\\vascular_model.duckdb",
+    config = list(temp_directory = "C:\\Temp"))
 gc()
 # ---------------------------------------------------------------------------
 # Create binary features table
 # ---------------------------------------------------------------------------
-dbExecute(con, "
-    CREATE OR REPLACE TABLE binary_features AS
-    SELECT DISTINCT
+binary_features <- dbGetQuery(read_con, "SELECT DISTINCT
         condition_visit_dates.DEID_PERSON_ID AS person_id,
         CONCEPT_NAME AS concept_name,
         CONCAT('F_', CONCEPT_ID) AS concept_id,
@@ -38,7 +42,13 @@ dbExecute(con, "
         vascular_start,
         min_revasc_date AS first_revasc,
         max_revasc_date AS last_revasc,
-        death_date,
+        CASE WHEN death_date IS NOT NULL
+                AND cod1 LIKE 'I%'
+                AND (cod2 LIKE 'I%'
+                    OR cod3 LIKE 'I%')
+                    THEN death_date
+            ELSE NULL END AS death_date,
+        --death_date,
         min_amp_date AS first_amp,
         max_amp_date AS last_amp
     FROM condition_visit_dates
@@ -54,7 +64,13 @@ dbExecute(con, "
         vascular_start,
         min_revasc_date AS first_revasc,
         max_revasc_date AS last_revasc,
-        death_date,
+        CASE WHEN death_date IS NOT NULL
+                AND cod1 LIKE 'I%'
+                AND (cod2 LIKE 'I%'
+                    OR cod3 LIKE 'I%')
+                    THEN death_date
+            ELSE NULL END AS death_date,
+        --death_date,
         min_amp_date AS first_amp,
         max_amp_date AS last_amp
     FROM observation
@@ -62,15 +78,18 @@ dbExecute(con, "
             ON observation.DEID_PERSON_ID = patient_summary_no_outliers.DEID_PERSON_ID
     WHERE patient_summary_no_outliers.vascular_start <= observation.OBSERVATION_DATE
 ")
+dbWriteTable(conn = write_con,
+    name = "binary_features",
+    value = binary_features,
+    overwrite = TRUE)
 
 # ---------------------------------------------------------------------------
 # Create roll_table_fast and write to DuckDB
 # ---------------------------------------------------------------------------
-
 # Read binary features from DuckDB into R
-features_table <- dbReadTable(con, "binary_features")
+features_table <- dbReadTable(write_con, "binary_features")
 gc()
-patient_table <- dbReadTable(con, "patient_summary_no_outliers")
+patient_table <- dbReadTable(read_con, "patient_summary_no_outliers")
 gc()
 # Create extant_conditions_network.
 extant_condition_network <- create_extant_network(concept_ancestor, features_table)
@@ -87,15 +106,15 @@ rm(extant_condition_network)
 gc()
 
 # Write roll_table_fast to DuckDB so the SQL below can reference it
-dbWriteTable(con, "roll_table_fast_spark", roll_table_fast, overwrite = TRUE)
+dbWriteTable(write_con, "roll_table_fast_spark", roll_table_fast, overwrite = TRUE)
 rm(roll_table_fast)
 gc()
 
 # ---------------------------------------------------------------------------
 # Create rolled features table
 # ---------------------------------------------------------------------------
-dbExecute(con, "
-    CREATE OR REPLACE TEMP VIEW rolled_features AS
+dbExecute(write_con, "
+    CREATE OR REPLACE TABLE rolled_features AS
     SELECT
         binary_features.concept_id,
         binary_features.person_id,
@@ -116,9 +135,12 @@ dbExecute(con, "
 # ---------------------------------------------------------------------------
 
 # Read rolled features from DuckDB into R
-rolled_features <- dbReadTable(con, "rolled_features")
-patient_table <- dbReadTable(con, "patient_summary_no_outliers")
+rolled_features <- dbReadTable(write_con, "rolled_features")
+patient_table <- dbReadTable(read_con, "patient_summary_no_outliers")
 rm(patient_table)
+dbExecute(read_con, "CHECKPOINT")
+dbExecute(read_con, "VACUUM")
+dbDisconnect(read_con,  shutdown="TRUE")
 gc()
 
 # Create arranged priority list.
@@ -152,7 +174,7 @@ gc()
 arranged_priority <- read.csv("arranged_priority.csv")
 gc()
 # Read rolled features from DuckDB into R
-rolled_features <- dbReadTable(con, "rolled_features")
+rolled_features <- dbReadTable(write_con, "rolled_features")
 
 # Construct tall dataset
 trimmed <- slim_features(rolled_features,
@@ -266,7 +288,7 @@ options(warn = oldw)
 arranged_priority <- read.csv("arranged_priority.csv")
 
 # Read rolled features from DuckDB into R
-rolled_features <- dbReadTable(con, "rolled_features")
+rolled_features <- dbReadTable(write_con, "rolled_features")
 
 # Construct tall dataset
 trimmed <- slim_features(rolled_features, concept_ancestor, sparky = FALSE, max_level = 4)
@@ -317,14 +339,14 @@ for (i in seq_along(chunked_lists))
         next
     }
     results_chunk <- lapply(chunk,
-                            test_target_function,
-                            fileName = NULL,
-                            features = features_min_trimmed,
-                            ancestor = anc,
-                            addl_vars = c("Dead", "Treated", "Untreated"),
-                            outcome_var = "Dead",
-                            treatment_var = "Treated",
-                            tech = "glm")
+        test_target_function,
+        fileName = NULL,
+        features = features_min_trimmed,
+        ancestor = anc,
+        addl_vars = c("Dead", "Treated", "Untreated"),
+        outcome_var = "Dead",
+        treatment_var = "Treated",
+        tech = "glm")
     print(class(results_chunk))
     print(str(results_chunk))
     qofl_df_chunk <- do.call(rbind, results_chunk)
@@ -377,7 +399,7 @@ options(warn = oldw)
 
 qofl_df <- read.csv("qofl_df_full_amp.csv")
 
-rolled_features <- dbReadTable(con, "rolled_features")
+rolled_features <- dbReadTable(write_con, "rolled_features")
 sum_criteria <- 0
 min_criteria <- -1e-3
 
@@ -391,23 +413,31 @@ reroll_candidates <- qofl_df %>%
     rename(ancestor_concept_id = target) %>%
     inner_join(concept_ancestor) %>%
     rename(rolled_concept_id = descendant_concept_id,
-           rerolled_concept_id = ancestor_concept_id)
+        rerolled_concept_id = ancestor_concept_id)
 rm(qofl_df)
 gc()
 
-# Write reroll_candidates to DuckDB so the join can be done in-database
-dbWriteTable(con, "reroll_candidates",
-             reroll_candidates %>% select(rolled_concept_id, rerolled_concept_id),
-             overwrite = TRUE)
+reroll_candidates <- reroll_candidates %>%
+    select(rolled_concept_id, rerolled_concept_id) %>%
+    distinct()
 
+# Write reroll_candidates to DuckDB so the join can be done in-database
+dbWriteTable(write_con, "reroll_candidates",
+    reroll_candidates %>% select(rolled_concept_id, rerolled_concept_id),
+    overwrite = TRUE)
+
+
+gc()
 rerolled_features <- rolled_features %>%
-    left_join(reroll_candidates %>% select(rolled_concept_id, rerolled_concept_id),
-              by = "rolled_concept_id") %>%
-    mutate(rerolled_concept_id = coalesce(rerolled_concept_id, rolled_concept_id))
+    left_join(reroll_candidates,
+        by = "rolled_concept_id")
 rm(rolled_features)
 gc()
+rerolled_features <- rerolled_features %>%
+    mutate(rerolled_concept_id = coalesce(rerolled_concept_id, rolled_concept_id))
+gc()
 
-dbWriteTable(con,name = "rerolled_features",rerolled_features, overwrite = TRUE)
+dbWriteTable(write_con,name = "rerolled_features",rerolled_features, overwrite = TRUE)
 summary(reroll_candidates)
 rm(reroll_candidates)
 gc()
@@ -416,7 +446,8 @@ str(rerolled_features)
 
 
 # ---------------------------------------------------------------------------
-
+rerolled_features <- dbReadTable(write_con,"rerolled_features")
+gc()
 rerolled_features_checker <- rerolled_features %>%
     select(-concept_id) %>%
     rename(concept_id = rerolled_concept_id)
@@ -424,12 +455,12 @@ rm(rerolled_features)
 gc()
 
 arranged_priority <- generate_priority_table(rerolled_features_checker, concept)
-rm(rerolled_features_checker)
-gc()
 
 print(arranged_priority)
 write.csv(arranged_priority, "arranged_priority_reroll.csv", row.names = FALSE)
 
-dbExecute(con, "CHECKPOINT")
-dbExecute(con, "VACUUM")
-dbDisconnect(con,  shutdown="TRUE")
+rm(rerolled_features_checker)
+gc()
+dbExecute(write_con, "CHECKPOINT")
+dbExecute(write_con, "VACUUM")
+dbDisconnect(write_con,  shutdown="TRUE")

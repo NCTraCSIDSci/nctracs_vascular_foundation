@@ -22,16 +22,16 @@ require(lubridate)
 source("Dimensional/source_this_file.R")
 set.seed(27)
 
-con <- dbConnect(duckdb::duckdb(), dbdir = "Z:\\vascular.duckdb")
-
+read_con <- dbConnect(duckdb::duckdb(), dbdir = "Z:\\vascular.duckdb")
+write_con <- dbConnect(duckdb::duckdb(), dbdir = "Z:\\vascular_model.duckdb")
 # First step: Create
-revasc_all <- dbGetQuery(con,
+revasc_all <- dbGetQuery(read_con,
     "SELECT
         deid_person_id AS person_id,
         procedure_date AS revasc_date
     FROM deriv_revascularization")
 
-vasc_starts <- dbGetQuery(con,
+vasc_starts <- dbGetQuery(read_con,
     "SELECT DISTINCT
         deriv_vascular_dx.DEID_PERSON_ID AS person_id,
         MIN(CONDITION_START_DATE) AS vascular_start
@@ -42,7 +42,7 @@ vasc_starts <- dbGetQuery(con,
     GROUP BY deriv_vascular_dx.DEID_PERSON_ID")
 
 # 0. Core patient summary details
-patient_summary <- dbGetQuery(con,
+patient_summary <- dbGetQuery(read_con,
     "SELECT DISTINCT
         deid_person_id AS person_id,
         visit_min,
@@ -50,8 +50,11 @@ patient_summary <- dbGetQuery(con,
         age,
         CASE WHEN GENDER_SOURCE_VALUE = 'F' THEN 1
             ELSE 0 END AS is_female, --Encoded variable
-        CASE WHEN death_date IS NULL THEN 0
-            ELSE 1 END AS Dead,
+        CASE WHEN death_date IS NOT NULL
+                AND cod1 LIKE 'I%'
+                AND (cod2 LIKE 'I%'
+                    OR cod3 LIKE 'I%') THEN 1
+            ELSE 0 END AS Dead,
         cci,
         CASE WHEN freq_smoking > 1 THEN 1
             WHEN freq_smoking = 1 THEN 0.5 --Possible errors
@@ -109,12 +112,12 @@ features_supplement <- patients_dates %>%
     inner_join(patient_summary)
 
 # Register relevant_dates in DuckDB so the drug/procedure queries below can JOIN against it
-dbWriteTable(con, "relevant_dates",
+dbWriteTable(read_con, "relevant_dates",
              features_supplement %>% select(person_id, vascular_start, decision_date),
              overwrite = TRUE)
 
 # Thromb exposure before decision date
-thromb <- dbGetQuery(con,
+thromb <- dbGetQuery(read_con,
                      "SELECT DISTINCT person_id
         FROM deriv_rx_thrombotic
         INNER JOIN relevant_dates
@@ -123,7 +126,7 @@ thromb <- dbGetQuery(con,
     mutate(thromb = 1)
 
 # Statin exposure before decision date
-statin <- dbGetQuery(con,
+statin <- dbGetQuery(read_con,
                      "SELECT DISTINCT person_id
         FROM deriv_rx_statins
         INNER JOIN relevant_dates
@@ -132,7 +135,7 @@ statin <- dbGetQuery(con,
     mutate(statin = 1)
 
 # Limb loss after decision date (earliest date per person)
-limb_loss <- dbGetQuery(con,
+limb_loss <- dbGetQuery(read_con,
     "SELECT person_id,
         MIN(procedure_date) AS limb_loss_date
     FROM deriv_amputations
@@ -142,7 +145,7 @@ limb_loss <- dbGetQuery(con,
     GROUP BY person_id")
 
 # Count prior amputations before decision date
-prior_amp <- dbGetQuery(con,
+prior_amp <- dbGetQuery(read_con,
     "SELECT person_id,
         COUNT(*) AS prior_amputations
     FROM deriv_amputations
@@ -151,7 +154,7 @@ prior_amp <- dbGetQuery(con,
     WHERE procedure_date < decision_date
     GROUP BY person_id")
 
-patient_pvl_summary <- dbGetQuery(con,
+patient_pvl_summary <- dbGetQuery(read_con,
     "SELECT deid_person_id AS person_id,
         --CASE WHEN MIN(CAST(value AS DOUBLE)) <= 0.4 THEN 1 ELSE 0 END AS very_low_pvl,
         --CASE WHEN MIN(CAST(value AS DOUBLE)) <= 0.9 THEN 1 ELSE 0 END AS low_pvl,
@@ -167,7 +170,7 @@ patient_pvl_summary <- dbGetQuery(con,
     mutate(min_PVL = as.numeric(min_PVL),
         max_PVL = as.numeric(max_PVL))
 
-prior_visits <- dbGetQuery(con,
+prior_visits <- dbGetQuery(read_con,
     "SELECT person_id,
         COUNT(DISTINCT visit_start_date) AS visit_ct
     FROM visit_occurrence
@@ -176,7 +179,7 @@ prior_visits <- dbGetQuery(con,
     WHERE visit_start_date < decision_date AND visit_start_date >= vascular_start
     GROUP BY person_id")
 
-prior_conds <- dbGetQuery(con,
+prior_conds <- dbGetQuery(read_con,
     "SELECT person_id,
         COUNT(DISTINCT condition_concept_id) AS condition_ct
     FROM condition_occurrence
@@ -185,7 +188,7 @@ prior_conds <- dbGetQuery(con,
     WHERE condition_start_date < decision_date AND condition_start_date >= vascular_start
     GROUP BY person_id")
 
-prior_obs <- dbGetQuery(con,
+prior_obs <- dbGetQuery(read_con,
     "SELECT person_id,
         COUNT(DISTINCT observation_concept_id) AS observation_ct
     FROM observation
@@ -194,7 +197,7 @@ prior_obs <- dbGetQuery(con,
     WHERE observation_date < decision_date AND observation_date >= vascular_start
     GROUP BY person_id")
 
-prior_procedures <- dbGetQuery(con,
+prior_procedures <- dbGetQuery(read_con,
     "SELECT person_id,
         COUNT(DISTINCT procedure_concept_id) AS procedure_ct
     FROM procedure_occurrence
@@ -202,7 +205,9 @@ prior_procedures <- dbGetQuery(con,
         ON DEID_PERSON_ID = person_id
     WHERE procedure_date < decision_date AND procedure_date >= vascular_start
     GROUP BY person_id")
-
+dbExecute(read_con, "CHECKPOINT")
+dbExecute(read_con, "VACUUM")
+dbDisconnect(read_con,  shutdown="TRUE")
 # Merge exposures, summary features, and activity counts
 features_final <- features_supplement %>%
     # Add binary exposures
@@ -224,7 +229,7 @@ features_final <- features_supplement %>%
                   ~ coalesce(., 0))) %>%
     rename_with(~ paste0("F_", .), .cols = -c(person_id, vascular_start, decision_date, Treated, Amputated, Dead, visit_min, visit_max, limb_loss_date)) # Add req'd prefix.
 
-dbWriteTable(con, "features_final", features_final, overwrite = TRUE)
+dbWriteTable(write_con, "features_final", features_final, overwrite = TRUE)
 
 summary(features_final)
 
@@ -253,16 +258,16 @@ features_final_fixed <- complete(mouse, 1) %>%
 # ---------------------------------------------------------------------------
 # Write feature supplement table
 # ---------------------------------------------------------------------------
-dbWriteTable(con, "vascular_feature_supplement", features_final_fixed, overwrite = TRUE)
+dbWriteTable(write_con, "vascular_feature_supplement", features_final_fixed, overwrite = TRUE)
 
 # ---------------------------------------------------------------------------
 # Generate features_min
 # ---------------------------------------------------------------------------
-trainset_size <- 10000 # Choice of training set size. Rest of sample is validation.
+trainset_size <- 100000 # Choice of training set size. Rest of sample is validation.
 
 # Data load
-patient_summary <- dbReadTable(con, "vascular_feature_supplement")
-rolled_features <- dbReadTable(con, "rerolled_features") %>%
+patient_summary <- dbReadTable(write_con, "vascular_feature_supplement")
+rolled_features <- dbReadTable(write_con, "rerolled_features") %>%
     select(person_id, rerolled_concept_id, concept_date) %>%
     rename(concept_id = rerolled_concept_id)
 
@@ -272,7 +277,7 @@ if(file.exists("manual_rollups.csv"))
         rename(concept_id = descendant_concept_id) %>%
         select(concept_id, manual_concept)
 
-    dbWriteTable(con, "manual_rollups", manual_rollups, overwrite = TRUE)
+    dbWriteTable(write_con, "manual_rollups", manual_rollups, overwrite = TRUE)
 
     rolled_features <- rolled_features %>%
         left_join(manual_rollups, by = "concept_id") %>%
@@ -330,8 +335,8 @@ wide_validation_set <- master_ids %>%
 # ---------------------------------------------------------------------------
 # Write training and validation tables
 # ---------------------------------------------------------------------------
-dbWriteTable(con, "vascular_wide_validation", wide_validation_set, overwrite = TRUE)
-dbWriteTable(con, "vascular_wide_training",   wide_training_set,   overwrite = TRUE)
+dbWriteTable(write_con, "vascular_wide_validation", wide_validation_set, overwrite = TRUE)
+dbWriteTable(write_con, "vascular_wide_training",   wide_training_set,   overwrite = TRUE)
 
 # ---------------------------------------------------------------------------
 
@@ -344,7 +349,7 @@ print(anomalies)
 # ---------------------------------------------------------------------------
 # Missing value check: vascular_wide_training
 # ---------------------------------------------------------------------------
-features_wide_training <- dbReadTable(con, "vascular_wide_training")
+features_wide_training <- dbReadTable(write_con, "vascular_wide_training")
 # Count NA (null) values per column
 # Create SQL query dynamically
 columns <- colnames(features_wide_training)
@@ -354,7 +359,7 @@ query <- paste(
     "FROM vascular_wide_training"
 )
 
-missing_df_1 <- dbGetQuery(con, query) %>%
+missing_df_1 <- dbGetQuery(write_con, query) %>%
     pivot_longer(everything(), names_to = "column", values_to = "missing_count") %>%
     arrange(desc(missing_count))
 summary(missing_df_1)
@@ -362,12 +367,12 @@ summary(missing_df_1)
 # ---------------------------------------------------------------------------
 # Distinct concept count in rerolled features
 # ---------------------------------------------------------------------------
-dbGetQuery(con, "SELECT COUNT(DISTINCT concept_id) FROM rerolled_features")
+dbGetQuery(write_con, "SELECT COUNT(DISTINCT concept_id) FROM rerolled_features")
 
 # ---------------------------------------------------------------------------
 # Missing value check: vascular_rerolled_features
 # ---------------------------------------------------------------------------
-vasc_reroll <- dbReadTable(con, "rerolled_features")
+vasc_reroll <- dbReadTable(write_con, "rerolled_features")
 # Count NA (null) values per column
 # Create SQL query dynamically
 columns <- colnames(vasc_reroll)
@@ -377,7 +382,7 @@ query <- paste(
     "FROM rerolled_features"
 )
 
-missing_df_2 <- dbGetQuery(con, query) %>%
+missing_df_2 <- dbGetQuery(write_con, query) %>%
     pivot_longer(everything(), names_to = "column", values_to = "missing_count") %>%
     arrange(desc(missing_count))
 summary(missing_df_2)

@@ -28,10 +28,30 @@ sparse_beta <- amp_model_final$glmnet.fit$beta[, lambda_index]
 # Convert to dense matrix and get nonzero entries
 coefs_matrix <- as.matrix(sparse_beta)
 saved_coefs <- as.data.frame(coefs_matrix)
-coefficients <- data.frame(concept_id = rownames(saved_coefs), weight = saved_coefs[[1]])
+coefficients_amp <- data.frame(concept_id = rownames(saved_coefs), weight = saved_coefs[[1]])
 
 # Filter nonzero coefficients
-nonzero_coeffs <- coefficients %>%
+nonzero_coeffs_amp <- coefficients_amp %>%
+    filter(weight != 0) %>%
+    nrow()
+print(nonzero_coeffs_amp)
+
+load("death_model_final.RData")
+# Find the index of the lambda closest to lambda.min
+# Get the lambda vector and find the closest index
+lambda_vec <- death_model_final$glmnet.fit$lambda
+lambda_index <- which.min(abs(lambda_vec - death_model_final$lambda.min))
+
+# Extract sparse matrix of coefficients for that lambda
+sparse_beta <- death_model_final$glmnet.fit$beta[, lambda_index]
+
+# Convert to dense matrix and get nonzero entries
+coefs_matrix <- as.matrix(sparse_beta)
+saved_coefs <- as.data.frame(coefs_matrix)
+coefficients_death <- data.frame(concept_id = rownames(saved_coefs), weight = saved_coefs[[1]])
+
+# Filter nonzero coefficients
+nonzero_coeffs_death <- coefficients_death %>%
     filter(weight != 0) %>%
     nrow()
 print(nonzero_coeffs)
@@ -50,10 +70,10 @@ sparse_beta <- treat_model_final$glmnet.fit$beta[, lambda_index]
 # Convert to dense matrix and get nonzero entries
 coefs_matrix <- as.matrix(sparse_beta)
 saved_coefs <- as.data.frame(coefs_matrix)
-coefficients <- data.frame(concept_id = rownames(saved_coefs), weight = saved_coefs[[1]])
+coefficients_treat <- data.frame(concept_id = rownames(saved_coefs), weight = saved_coefs[[1]])
 
 # Filter nonzero coefficients
-nonzero_coeffs <- coefficients %>%
+nonzero_coeffs_treat <- coefficients_treat %>%
     filter(weight != 0) %>%
     nrow()
 print(nonzero_coeffs)
@@ -64,7 +84,7 @@ str(amp_model_final)
 
 # ---------------------------------------------------------------------------
 
-dbGetQuery(read_con, "SELECT * FROM vascular_feature_supplement LIMIT 10")
+#dbGetQuery(read_con, "SELECT * FROM vascular_feature_supplement LIMIT 10")
 
 # ---------------------------------------------------------------------------
 
@@ -217,6 +237,10 @@ coeff_D_named_corrected <- coeff_D_named %>%
 write_csv(coeff_T_named_corrected,"coeff_T_named.csv")
 write_csv(coeff_A_named_corrected,"coeff_A_named.csv")
 write_csv(coeff_D_named_corrected,"coeff_D_named.csv")
+
+write_csv(coefficients_amp,"coefficients_final_model_amp.csv")
+write_csv(coefficients_death,"coefficients_final_model_death.csv")
+write_csv(coefficients_treat,"coefficients_final_model_treat.csv")
 
 # ---------------------------------------------------------------------------
 dbExecute(read_con, "CHECKPOINT")

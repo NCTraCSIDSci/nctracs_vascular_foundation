@@ -20,7 +20,7 @@ source("Dimensional/test_target.R")
 source("Dimensional/slim_features.R")
 #load("Dimensional/concept_ancestor.Rda")
 #load("Dimensional/concept.Rda")
-con <- dbConnect(duckdb::duckdb(), dbdir = "Z:\\vascular.duckdb")
+con <- dbConnect(duckdb::duckdb(), dbdir = "Z:\\vascular.duckdb",read_only = TRUE)
 concept_ancestor <- dbReadTable(con,"concept_ancestor")
 concept <- dbReadTable(con,"concept")
 
@@ -30,7 +30,7 @@ names(concept) <- tolower(names(concept))
 names(concept_ancestor) <- tolower(names(concept_ancestor))
 concept<- concept %>%
     mutate(concept_id = paste0("F_",concept_id))
-concept_ancestor <- concept_ancestor %>% 
+concept_ancestor <- concept_ancestor %>%
     mutate(ancestor_concept_id = paste0("F_",ancestor_concept_id),
         descendant_concept_id = paste0("F_",descendant_concept_id))
 

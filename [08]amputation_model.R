@@ -9,7 +9,7 @@
 # The loop count and feature count are low in this version for testing purposes. Higher values for both are recommended for best model accuracy.
 # Loop A with IPTW vector
 
-loop_count <- 100
+loop_count <- 2000
 feature_count <- 100
 if (!requireNamespace("glmnet", quietly = TRUE))
 {
@@ -22,19 +22,18 @@ require(lubridate)
 source("Dimensional/source_this_file.R")
 
 # Source database is opened read-only. All writes go to vascular_model.
-read_con  <- dbConnect(duckdb::duckdb(), dbdir = "Z:\\vascular.duckdb", read_only = TRUE)
 write_con <- dbConnect(duckdb::duckdb(), dbdir = "Z:\\vascular_model.duckdb")
 
 # Run treatment model.
 treat_probs_trainset <- read_csv("treat_probs_trainset.csv")
 treat_probs_valset   <- read_csv("treat_probs_valset.csv")
 
-train_data_T <- dbReadTable(read_con, "vascular_wide_training") %>%
+train_data_T <- dbReadTable(write_con, "vascular_wide_training") %>%
     inner_join(treat_probs_trainset, by = "person_id")
 load("treat_model_final.RData")
 outcomes <- quick_apply_model(input_data = train_data_T,
     input_model = treat_model_final)
-val_data_T <- dbReadTable(read_con, "vascular_wide_validation") %>%
+val_data_T <- dbReadTable(write_con, "vascular_wide_validation") %>%
     inner_join(treat_probs_valset, by = "person_id")
 
 # Grab full wide data.
@@ -136,13 +135,17 @@ source("Dimensional/source_this_file.R")
 treat_probs_trainset <- read_csv("treat_probs_trainset.csv")
 treat_probs_valset   <- read_csv("treat_probs_valset.csv")
 
-train_data_T <- dbReadTable(read_con, "vascular_wide_training") %>%
+train_data_T <- dbReadTable(write_con, "vascular_wide_training") %>%
     inner_join(treat_probs_trainset, by = "person_id")
 load("treat_model_final.RData")
 outcomes <- quick_apply_model(input_data = train_data_T,
     input_model = treat_model_final)
-val_data_T <- dbReadTable(read_con, "vascular_wide_validation") %>%
+val_data_T <- dbReadTable(write_con, "vascular_wide_validation") %>%
     inner_join(treat_probs_valset, by = "person_id")
+
+
+
+
 
 # Grab full wide data.
 features_wide_training   <- train_data_T
@@ -225,10 +228,12 @@ print(summary_performance)
 print(summary_performance_T)
 print(paste0("AUC: ",auc_val," (trainset ",auc_train,")"))
 
+all_perf <- list(summary_performance = summary_performance,
+    summary_performance_T = summary_performance_T,
+    auc_val = auc_val,
+    auc_train = auc_train)
+save(all_perf, file = paste0(substr(as.character(now()),1,10),"amputation_performance.RData"))
 # ---------------------------------------------------------------------------
-dbExecute(read_con, "CHECKPOINT")
-dbExecute(read_con, "VACUUM")
-dbDisconnect(read_con,  shutdown="TRUE")
 dbExecute(write_con, "CHECKPOINT")
 dbExecute(write_con, "VACUUM")
 dbDisconnect(write_con,  shutdown="TRUE")

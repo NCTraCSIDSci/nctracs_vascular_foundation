@@ -20,11 +20,10 @@ require(lubridate)
 source("Dimensional/source_this_file.R")
 
 # Source database is opened read-only. All writes go to vascular_model.
-read_con  <- dbConnect(duckdb::duckdb(), dbdir = "Z:\\vascular.duckdb", read_only = TRUE)
 write_con <- dbConnect(duckdb::duckdb(), dbdir = "Z:\\vascular_model.duckdb")
 
 # Grab (unfortunately) the whole table:
-wide_table_column_names <- dbListFields(read_con, "vascular_wide_training")
+wide_table_column_names <- dbListFields(write_con, "vascular_wide_training")
 feature_names <- wide_table_column_names[startsWith(wide_table_column_names, "F_")]
 
 # Adjust salient concepts to only include the short list:
@@ -62,7 +61,7 @@ weights_A
 # Treatment model MCMC loop
 # ---------------------------------------------------------------------------
 
-loop_count <- 100 # Reduced for short testing.
+loop_count <- 2000 # Reduced for short testing.
 feature_count <- 100
 if (!requireNamespace("glmnet", quietly = TRUE))
 {
@@ -73,8 +72,8 @@ require(glmnet)
 source("Dimensional/source_this_file.R")
 
 # Grab full wide data.
-features_wide_training   <- dbReadTable(read_con, "vascular_wide_training")
-features_wide_validation <- dbReadTable(read_con, "vascular_wide_validation")
+features_wide_training   <- dbReadTable(write_con, "vascular_wide_training")
+features_wide_validation <- dbReadTable(write_con, "vascular_wide_validation")
 
 coeff_log <- data.frame()
 
@@ -136,9 +135,8 @@ require(lubridate)
 source("Dimensional/source_this_file.R")
 
 # Grab full wide data.
-features_wide_training   <- dbReadTable(read_con, "vascular_wide_training")
-features_wide_validation <- dbReadTable(read_con, "vascular_wide_validation")
-
+features_wide_training   <- dbReadTable(write_con, "vascular_wide_training")
+features_wide_validation <- dbReadTable(write_con, "vascular_wide_validation")
 start_time = Sys.time()
 weights <- read.csv("weights_T.csv") %>%
     arrange(-weight) %>%
@@ -187,19 +185,22 @@ auc_val <- basic_AUC(outcome_probs_valset$Treated, outcome_probs_valset$outcome_
 auc_train <- basic_AUC(outcome_probs_trainset$Treated, outcome_probs_trainset$outcome_prob)
 
 summary_performance <- outcome_probs_valset %>%
+    group_by(Treated) %>%
     summarize(mean_prob = mean(outcome_prob))
 summary_performance_T <- outcome_probs_trainset %>%
+    group_by(Treated) %>%
     summarize(mean_prob = mean(outcome_prob))
 
 print(summary_performance)
 print(summary_performance_T)
 print(paste0("AUC: ",auc_val," (trainset ",auc_train,")"))
-
+all_perf <- list(summary_performance = summary_performance,
+    summary_performance_T = summary_performance_T,
+    auc_val = auc_val,
+    auc_train = auc_train)
+save(all_perf, file = paste0(substr(as.character(now()),1,10),"treatment_performance.RData"))
 # ---------------------------------------------------------------------------
 
-dbExecute(read_con, "CHECKPOINT")
-dbExecute(read_con, "VACUUM")
-dbDisconnect(read_con,  shutdown="TRUE")
 dbExecute(write_con, "CHECKPOINT")
 dbExecute(write_con, "VACUUM")
 dbDisconnect(write_con,  shutdown="TRUE")

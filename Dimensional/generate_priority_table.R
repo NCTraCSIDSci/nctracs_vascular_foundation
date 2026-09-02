@@ -1,9 +1,22 @@
-generate_priority_table <- function(feature_table,concept_table)
+generate_priority_table <- function(feature_table,
+    concept_table)
 {
+    gc()
     filtered_first_priority <- feature_table %>%
-        filter(concept_date < first_revasc | is.na(first_revasc)) %>%
-        select(person_id, concept_id, first_revasc, last_revasc, first_amp, last_amp, death_date) %>%
-        distinct() %>%
+        filter(concept_date < first_revasc | is.na(first_revasc))
+    gc()
+    filtered_first_priority <- filtered_first_priority %>%
+        select(person_id,
+            concept_id,
+            first_revasc,
+            last_revasc,
+            first_amp,
+            last_amp,
+            death_date)
+    filtered_first_priority <- filtered_first_priority %>%
+        distinct()
+    gc()
+    filtered_first_priority <- filtered_first_priority %>%
         group_by(concept_id) %>%
         summarize(
             Total = n(),
@@ -37,7 +50,7 @@ generate_priority_table <- function(feature_table,concept_table)
                Salient_TA = pmax(Outcome_diff_TA, 1 / (Outcome_diff_TA + 1e-6))) %>%
         arrange(-Salient_TD) %>%
         collect()
-    
+    gc()
     arranged_priority <- filtered_first_priority %>%
         arrange(-Salient_TD) %>%
         select(concept_id,

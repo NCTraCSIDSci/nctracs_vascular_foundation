@@ -33,21 +33,24 @@ dbExecute(con, "
     FROM patient_summary
     WHERE DEID_PERSON_ID NOT IN (SELECT DEID_PERSON_ID FROM outliers_time)
         AND min_amp_date IS NOT NULL
-    LIMIT 3500)
+    )
+    --LIMIT 3500)
     UNION
     (SELECT *
     FROM patient_summary
     WHERE DEID_PERSON_ID NOT IN (SELECT DEID_PERSON_ID FROM outliers_time)
         AND min_amp_date IS NULL
         AND min_revasc_date IS NOT NULL
-    LIMIT 3500)
+    )
+    --LIMIT 3500)
     UNION
     (SELECT *
     FROM patient_summary
     WHERE DEID_PERSON_ID NOT IN (SELECT DEID_PERSON_ID FROM outliers_time)
         AND min_amp_date IS NULL
         AND min_revasc_date IS NULL
-    LIMIT 10000)")
+    )
+    --LIMIT 10000)")
 # The limit and subselection is for test runs on small data.
 # Adjust or remove as appropriate.
 # ---------------------------------------------------------------------------

@@ -16,17 +16,25 @@ slim_features <- function(wide_features, ancestor_table, sparky, max_level)
         mutate(Treated = !is.na(first_revasc),
                Dead = !is.na(death_date),
                Amputated = !is.na(first_amp) & (is.na(first_revasc) | last_amp > first_revasc), #Looking for amputation outcomes.
-               Untreated = is.na(first_revasc)) %>%
+               Untreated = is.na(first_revasc))
+    gc()
+    tall_outcomes <- tall_outcomes %>%
         select(person_id,
                Treated,
                Dead,
                Amputated,
-               Untreated) %>%
+               Untreated)
+    gc()
+    tall_outcomes <- tall_outcomes %>%
         pivot_longer(cols = !person_id,
                      names_to = "concept_id",
-                     values_to = "present") %>%
+                     values_to = "present",
+            values_drop_na = TRUE)
+    gc()
+    tall_outcomes <- tall_outcomes %>%
         filter(present == TRUE) %>%
         select(person_id, concept_id)
+    gc()
 
     features_min <- wide_features %>%
         filter(is.na(first_revasc) | (concept_date < first_revasc)) %>%
